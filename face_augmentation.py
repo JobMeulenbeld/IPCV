@@ -18,6 +18,35 @@ cap = cv2.VideoCapture(0)
 
 landmarks = None
 
+def overlay_transparent(frame, overlay, x, y):
+    """
+    Overlay RGBA `overlay` image onto BGR `frame` at position (x, y).
+    Handles alpha blending and clipping at image borders.
+    """
+    h, w = frame.shape[:2]
+    h_o, w_o = overlay.shape[:2]
+
+    # Clip overlay to stay within the frame
+    if x >= w or y >= h:
+        return frame
+
+    w = min(w_o, w - x)
+    h = min(h_o, h - y)
+
+    if w <= 0 or h <= 0:
+        return frame
+
+    overlay = overlay[0:h, 0:w]
+    overlay_img = overlay[:, :, :3]
+    mask = overlay[:, :, 3:] / 255.0  # alpha channel normalized to [0,1]
+
+    # Perform alpha blending
+    frame[y:y+h, x:x+w] = (1.0 - mask) * frame[y:y+h, x:x+w] + mask * overlay_img
+
+    return frame
+
+
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -31,35 +60,16 @@ while True:
     x2, y2 = landmarks[16]
 
     x_difference = int(abs(x2 - x1))
-    ratio = x_difference / width if width > 0 else 1
+    ratio = x_difference / height if x_difference > 0 else 1
+    print(ratio)
     height_resized = int(height * ratio)
 
     glasses_resized = cv2.resize(glasses, (x_difference, height_resized))
 
-    # Ensure integer coordinates
+
     top_left = (int(landmarks[0][0]), int(landmarks[0][1]))
     bottom_right = (int(top_left[0] + x_difference), int(top_left[1] + height_resized))
-
-    # Clip coordinates to frame boundaries
-    h, w = frame.shape[:2]
-    x1, y1 = max(0, top_left[0]), max(0, top_left[1])
-    x2, y2 = min(w, bottom_right[0]), min(h, bottom_right[1])
-
-    # Resize overlay if necessary to fit the clipped region
-    overlay_w, overlay_h = x2 - x1, y2 - y1
-    glasses_resized = cv2.resize(glasses_resized, (overlay_w, overlay_h))
-
-    # Blend or overlay
-    if glasses_resized.shape[2] == 4:
-        alpha = glasses_resized[:, :, 3] / 255.0
-        rgb = glasses_resized[:, :, :3]
-        for c in range(3):
-            frame[y1:y2, x1:x2, c] = (
-                alpha * rgb[:, :, c] +
-                (1 - alpha) * frame[y1:y2, x1:x2, c]
-            )
-    else:
-        frame[y1:y2, x1:x2] = glasses_resized
+    frame = overlay_transparent(frame, glasses_resized, int(top_left[0]), int(top_left[1]))
 
     cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
     if cv2.waitKey(1) & 0xFF == 27:  # ESC
