@@ -21,9 +21,10 @@ while True:
     if not ret:
         break
     
-    get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3)
+    landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3, count_points=True)
 
     cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
+    print(landmarks)
     if cv2.waitKey(1) & 0xFF == 27:  # ESC
         break
 

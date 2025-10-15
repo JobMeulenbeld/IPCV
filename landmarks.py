@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 
-def get_landmarks(frame, smooth_landmarks, face_net, facemark, alpha=0.3):
+def get_landmarks(frame, smooth_landmarks, face_net, facemark, alpha=0.3, count_points = False):
     h, w = frame.shape[:2]
 
     # --- Step 4: Detect faces with DNN ---
@@ -42,8 +42,12 @@ def get_landmarks(frame, smooth_landmarks, face_net, facemark, alpha=0.3):
                 smooth_landmarks = alpha * smooth_landmarks + (1 - alpha) * current_landmarks
 
             # Draw the points
-            for (x, y) in smooth_landmarks.astype(int):
+            for index, (x, y) in enumerate(smooth_landmarks.astype(int)):
                 cv2.circle(frame, (x, y), 2, (0, 255, 0), -1)
+                if count_points:
+                    label_pos = (x + 5, y)
+                    cv2.putText(frame, str(index), label_pos,
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 2, cv2.LINE_AA)
                 # for (x, y, w_, h_) in faces:
                 #     cv2.rectangle(frame, (x, y), (x + w_, y + h_), (255, 0, 0), 2)
             return smooth_landmarks
