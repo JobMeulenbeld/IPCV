@@ -44,10 +44,12 @@ def get_landmarks(frame, smooth_landmarks, face_net, facemark, alpha=0.3, count_
             # Draw the points
             for index, (x, y) in enumerate(smooth_landmarks.astype(int)):
                 cv2.circle(frame, (x, y), 2, (0, 255, 0), -1)
+
                 if count_points:
                     label_pos = (x + 5, y)
                     cv2.putText(frame, str(index), label_pos,
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 2, cv2.LINE_AA)
+                    
                 # for (x, y, w_, h_) in faces:
                 #     cv2.rectangle(frame, (x, y), (x + w_, y + h_), (255, 0, 0), 2)
             return smooth_landmarks
