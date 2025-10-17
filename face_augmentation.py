@@ -84,7 +84,7 @@ while True:
 
     frame = overlay_transparent(frame, glasses_rotated, int(top_left[0]), int(top_left[1]))
 
-    #frame = cv2.flip(frame, 1)
+    frame = cv2.flip(frame, 1)
 
     cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
     if cv2.waitKey(1) & 0xFF == 27:  # ESC
