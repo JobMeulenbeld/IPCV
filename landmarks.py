@@ -4,7 +4,7 @@ import numpy as np
 
 def get_landmarks(frame, smooth_landmarks, face_net, facemark, alpha=0.3, count_points = False):
     h, w = frame.shape[:2]
-
+    frame = cv2.flip(frame, 1)
     # --- Step 4: Detect faces with DNN ---
     blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0,
                                  (300, 300), (104.0, 177.0, 123.0))

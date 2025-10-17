@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import math
 from landmarks import get_landmarks
 
 
@@ -45,7 +46,11 @@ def overlay_transparent(frame, overlay, x, y):
 
     return frame
 
-
+def rotate_image(img, angle):
+    h, w = img.shape[:2]
+    center = (w // 2, h // 2)
+    rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
+    return cv2.warpAffine(img, rot_mat, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
 
 while True:
     ret, frame = cap.read()
@@ -54,22 +59,32 @@ while True:
     
     landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3, count_points=True)
 
-    width, height = glasses.shape[:2]
+    height, width, channels = glasses.shape
 
     x1, y1 = landmarks[0]
     x2, y2 = landmarks[16]
 
     x_difference = int(abs(x2 - x1))
-    ratio = x_difference / height if x_difference > 0 else 1
-    print(ratio)
+    y_difference = int(abs(y2 - y1))
+
+    ratio = x_difference / width
     height_resized = int(height * ratio)
 
     glasses_resized = cv2.resize(glasses, (x_difference, height_resized))
 
+    dy = y2 - y1
+    dx = x2 - x1
+    angle_rad = -math.atan2(dy, dx)
+    angle_deg = math.degrees(angle_rad)
 
-    top_left = (int(landmarks[0][0]), int(landmarks[0][1]))
+    glasses_rotated = rotate_image(glasses_resized, angle_deg)
+
+    top_left = (int(landmarks[0][0]), int(landmarks[0][1] - 30))
     bottom_right = (int(top_left[0] + x_difference), int(top_left[1] + height_resized))
-    frame = overlay_transparent(frame, glasses_resized, int(top_left[0]), int(top_left[1]))
+
+    frame = overlay_transparent(frame, glasses_rotated, int(top_left[0]), int(top_left[1]))
+
+    #frame = cv2.flip(frame, 1)
 
     cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
     if cv2.waitKey(1) & 0xFF == 27:  # ESC
