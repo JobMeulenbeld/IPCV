@@ -42,7 +42,7 @@ def get_landmarks(frame, smooth_landmarks, face_net, facemark, alpha=0.3, count_
 
             # Draw the points
             for index, (x, y) in enumerate(smooth_landmarks.astype(int)):
-                cv2.circle(frame, (x, y), 2, (0, 255, 0), -1)
+                # cv2.circle(frame, (x, y), 2, (0, 255, 0), -1)
 
                 if count_points:
                     label_pos = (x + 5, y)

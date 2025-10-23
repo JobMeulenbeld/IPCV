@@ -59,6 +59,9 @@ while True:
     
     landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3, count_points=True)
 
+    if landmarks is None:
+        continue
+
     height, width, channels = glasses.shape
 
     x1, y1 = landmarks[0]
