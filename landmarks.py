@@ -1,6 +1,43 @@
 import cv2
 import numpy as np
 
+def add_forehead_arc(frame, landmarks, num_points=10, height_ratio=0.08, color=(0, 0, 255), draw=False):
+    if landmarks is None:
+        return None
+    # Start and end points
+    p0 = landmarks[0]
+    p16 = landmarks[16]
+
+    # Estimate face height for curvature
+    y_min, y_max = np.min(landmarks[:, 1]), np.max(landmarks[:, 1])
+    face_height = y_max - y_min
+
+    arc_height = face_height * height_ratio
+
+    # Generate arc points
+    arc_pts = []
+    for t in np.linspace(0, 1, num_points):
+        # Linear interpolation between p0 and p8
+        x = (1 - t) * (p0[0]+5) + t * (p16[0]-5)
+        y = (1 - t) * p0[1] + t * p16[1]
+        # Add upward curvature (parabolic)
+        curve = -4 * arc_height * (t - 0.5) ** 2 + arc_height  # max at t=0.5
+        arc_pts.append([x, (y - 20) - curve])
+
+    arc_pts = np.array(arc_pts, dtype=np.float32)
+
+    # Append to landmarks
+    extended = np.vstack((landmarks, arc_pts))
+
+    if draw:
+        # Draw points
+        start_index = len(landmarks)
+        for i, (x, y) in enumerate(arc_pts.astype(int)):
+            cv2.circle(frame, (x, y), 2, color, -1)
+            cv2.putText(frame, str(start_index + i), (x + 5, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1, cv2.LINE_AA)
+
+    return extended
 
 def get_landmarks(frame, smooth_landmarks, face_net, facemark, alpha=0.3, count_points = False):
     h, w = frame.shape[:2]

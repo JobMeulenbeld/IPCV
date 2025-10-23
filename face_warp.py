@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from landmarks import get_landmarks
+from landmarks import get_landmarks, add_forehead_arc
 
 triangles_cache = None   # global variable
 
@@ -301,8 +301,9 @@ while True:
         break
     
     landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3, count_points=False)
+    extended_landmarks = add_forehead_arc(frame, landmarks, 20, 0.25, color=(255,0,0), draw=False)
 
-    frame = squish_features(frame, landmarks, strength=0.9 - frame_count * 0.003 if frame_count < 200 else 0.3)
+    frame = squish_features(frame, extended_landmarks, strength=0.9 - frame_count * 0.003 if frame_count < 200 else 0.3)
     #frame = local_face_squish(frame, landmarks, strength=0.4)
     #frame = face_morph_squish(frame, landmarks, strength=0.5)
 
