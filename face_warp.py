@@ -31,7 +31,7 @@ def get_delaunay_triangles(coords, width, height):
 
     return triangles
 
-def squish_features(frame, landmarks, strength=0.7, debug=False):
+def squish_features(frame, landmarks, strength=0.7, debug=False, NeuralNet=False):
     global triangles_cache
 
     if landmarks is None:
@@ -42,15 +42,23 @@ def squish_features(frame, landmarks, strength=0.7, debug=False):
         src_pts = landmarks.astype(np.float32)
         dst_pts = src_pts.copy()
 
-        inner_idxs = list(range(17, 68))  # full inner face
-        # eyebrows = list(range(17, 27))    # eyebrows
-        # inner_idxs += eyebrows            # include brows explicitly
-        center = np.mean(src_pts[inner_idxs], axis=0)
+        if NeuralNet:
+            inner_idxs = list(range(17, 68))  # full inner face
+            # eyebrows = list(range(17, 27))    # eyebrows
+            # inner_idxs += eyebrows            # include brows explicitly
+            center = np.mean(src_pts[inner_idxs], axis=0)
 
-        # Move inner points toward center
-        for i in inner_idxs:
-            direction = center - src_pts[i]
-            dst_pts[i] = src_pts[i] + direction * (1 - strength)
+            # Move inner points toward center
+            for i in inner_idxs:
+                direction = center - src_pts[i]
+                dst_pts[i] = src_pts[i] + direction * (1 - strength)
+        else:
+            outer_idxs = [0, 1, 2, 3, 4, 5 , 6, 7]     # face corners
+            inner_idxs = list(range(8, len(src_pts)))  # eyes, mouth, nose
+            center = np.mean(src_pts[inner_idxs], axis=0)
+            for i in inner_idxs:
+                direction = center - src_pts[i]
+                dst_pts[i] = src_pts[i] + direction * (1 - strength)
 
         #Compute Delaunay triangulation for warp
         if triangles_cache is None:
@@ -95,38 +103,38 @@ def squish_features(frame, landmarks, strength=0.7, debug=False):
         return frame, landmarks
 
 
-# *********************************************************************************
+# # *********************************************************************************
 
-modelFile = "res10_300x300_ssd_iter_140000.caffemodel"
-configFile = "deploy.prototxt"
-face_net = cv2.dnn.readNetFromCaffe(configFile, modelFile)
+# modelFile = "res10_300x300_ssd_iter_140000.caffemodel"
+# configFile = "deploy.prototxt"
+# face_net = cv2.dnn.readNetFromCaffe(configFile, modelFile)
 
 
-facemark = cv2.face.createFacemarkLBF()
-facemark.loadModel("lbfmodel.yaml")
+# facemark = cv2.face.createFacemarkLBF()
+# facemark.loadModel("lbfmodel.yaml")
 
-# open webcam
-cap = cv2.VideoCapture(0)
+# # open webcam
+# cap = cv2.VideoCapture(0)
 
-landmarks = None
-frame_count = 0
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+# landmarks = None
+# frame_count = 0
+# while True:
+#     ret, frame = cap.read()
+#     if not ret:
+#         break
     
-    landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3, count_points=False)
-    extended_landmarks = add_forehead_arc(frame, landmarks, 20, 0.25, color=(255,0,0), draw=False)
+#     landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3, count_points=False)
+#     extended_landmarks = add_forehead_arc(frame, landmarks, 20, 0.25, color=(255,0,0), draw=False)
 
-    frame, dst_points = squish_features(frame, extended_landmarks, strength=1.2)
+#     frame, dst_points = squish_features(frame, extended_landmarks, strength=0.7, NeuralNet=True, debug=False)
 
-    print(dst_points)
+#     print(dst_points)
 
-    cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
-    if cv2.waitKey(1) & 0xFF == 27:  # ESC
-        break
+#     cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
+#     if cv2.waitKey(1) & 0xFF == 27:  # ESC
+#         break
 
-    frame_count += 1
+#     frame_count += 1
 
-cap.release()
-cv2.destroyAllWindows()
+# cap.release()
+# cv2.destroyAllWindows()
