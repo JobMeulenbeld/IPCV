@@ -48,20 +48,11 @@ def overlay_transparent(frame, overlay, x, y):
 
 def rotate_image(img, angle):
     h, w = img.shape[:2]
-    center = (w // 2, h // 2)
+    center = ((w // 2)+15, h // 2)
     rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
     return cv2.warpAffine(img, rot_mat, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-    
-    landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3, count_points=True)
-
-    if landmarks is None:
-        continue
-
+def face_augmemtation(frame, landmarks):
     height, width, channels = glasses.shape
 
     x1, y1 = landmarks[0]
@@ -88,6 +79,20 @@ while True:
     frame = overlay_transparent(frame, glasses_rotated, int(top_left[0]), int(top_left[1]))
 
     frame = cv2.flip(frame, 1)
+
+    return frame
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+    
+    landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3, count_points=True)
+
+    if landmarks is None:
+        continue
+
+    frame = face_augmemtation(frame, landmarks)
 
     cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
     if cv2.waitKey(1) & 0xFF == 27:  # ESC
