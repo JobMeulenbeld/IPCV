@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from face_warp import squish_features, get_delaunay_triangles
+import math
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
@@ -73,11 +74,13 @@ def approximate_landmarks(face, eyes, smiles):
 
 # open webcam
 cap = cv2.VideoCapture(0)
-
+frame_counter = 0
 while True:
     ret, frame = cap.read()
     if not ret:
         break
+    
+    strength = 1.0 + 0.5 * math.sin(frame_counter * 0.05)
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     face = detect_face(gray)
@@ -94,8 +97,10 @@ while True:
         # for (lx, ly) in landmarks:
         #     cv2.circle(frame, (int(lx), int(ly)), 3, (0,255,255), -1)
         # Apply squish effect
-        frame, _ = squish_features(frame, landmarks, strength=0.5, debug=False)
+        frame, _ = squish_features(frame, landmarks, strength=strength, debug=False)
     
+    frame_counter += 1
+
     cv2.imshow("Real-time Facial Landmarks", frame)
     if cv2.waitKey(1) & 0xFF == 27:  # ESC
         break
