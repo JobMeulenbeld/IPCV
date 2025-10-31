@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from face_warp import squish_features, get_delaunay_triangles
+from face_augmentation import face_overlay
 import math
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
@@ -8,6 +9,9 @@ face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_fronta
 eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
 
 smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_smile.xml")
+
+glasses = cv2.imread("glasses.png", cv2.IMREAD_UNCHANGED)
+hat = cv2.imread("hat.png", cv2.IMREAD_UNCHANGED)
 
 def detect_face(gray):
     faces = face_cascade.detectMultiScale(gray, 1.2, 5, minSize=(100,100))
@@ -73,6 +77,7 @@ def approximate_landmarks(face, eyes, smiles):
     return np.array(landmarks, np.float32)
 
 # open webcam
+
 cap = cv2.VideoCapture(0)
 frame_counter = 0
 while True:
@@ -97,7 +102,10 @@ while True:
         # for (lx, ly) in landmarks:
         #     cv2.circle(frame, (int(lx), int(ly)), 3, (0,255,255), -1)
         # Apply squish effect
-        frame, _ = squish_features(frame, landmarks, strength=strength, debug=False)
+        frame, landmarks = squish_features(frame, landmarks, strength=strength, debug=False)
+
+        frame = face_overlay(frame, glasses, landmarks[8], landmarks[9], 2.2, 0, 160)
+        frame = face_overlay(frame, hat, landmarks[0], landmarks[2], 1, 0, 4500)
     
     frame_counter += 1
 

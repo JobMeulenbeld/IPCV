@@ -2,9 +2,10 @@ import cv2
 import numpy as np
 import math
 from landmarks import get_landmarks
-from face_feature import detect_face, detect_eyes, detect_smile, approximate_landmarks
+#from face_feature import detect_face, detect_eyes, detect_smile, approximate_landmarks
 
 glasses = cv2.imread("glasses.png", cv2.IMREAD_UNCHANGED)
+hat = cv2.imread("hat.png", cv2.IMREAD_UNCHANGED)
 
 landmarks = None
 
@@ -35,29 +36,33 @@ def overlay_transparent(frame, overlay, x, y):
 
     return frame
 
-def face_augmemtation(frame, landmarks):
-    height, width, channels = glasses.shape
+def face_overlay(frame, image, landmark1, landmark2, scale_factor, x_offset, y_offset):
+    height, width, channels = image.shape
 
-    x1, y1 = landmarks[8]
-    x2, y2 = landmarks[9]
+    x1, y1 = landmark1
+    x2, y2 = landmark2
+    #cv2.circle(frame, (int(x1), int(y1)), radius=3, color=(0, 0, 255), thickness=-1)
+    #cv2.circle(frame, (int(x2), int(y2)), radius=3, color=(0, 0, 255), thickness=-1)
 
-    x_difference = int(abs(x2 - x1))
-    y_difference = int(abs(y2 - y1))
+    dx = int(abs(x2 - x1))
+    image_width_resized = int(dx * scale_factor)
 
-    ratio = x_difference / width
-    height_resized = int(height * ratio)
+    ratio = image_width_resized / width
+    image_height_resized = int(height * ratio)
 
-    glasses_resized = cv2.resize(glasses, (x_difference, height_resized))
+    image_x_offset = (image_width_resized-dx)/2 + (x_offset * ratio)
+    image_y_offset = (y_offset * ratio)
 
-    top_left = (int(landmarks[0][0]), int(landmarks[0][1]))
-    bottom_right = (int(top_left[0] + x_difference), int(top_left[1] + height_resized))
+    image_resized = cv2.resize(image, (image_width_resized, image_height_resized))
 
-    frame = overlay_transparent(frame, glasses_resized, int(top_left[0]), int(top_left[1]))
+    top_left = (int(x1 - image_x_offset), int(y1 - image_y_offset))
+    #bottom_right = (int(top_left[0] + image_width_resized), int(top_left[1] + image_height_resized))
 
-    frame = cv2.flip(frame, 1)
-
+    frame = overlay_transparent(frame, image_resized, int(top_left[0]), int(top_left[1]))
     return frame
 
+
+'''
 # open webcam
 cap = cv2.VideoCapture(0)
 frame_counter = 0
@@ -75,7 +80,7 @@ while True:
         cv2.rectangle(frame, (x,y), (x+w, y+h), (255,0,0), 2)
         eyes = detect_eyes(gray, face)
         # for (ex,ey,ew,eh) in eyes:
-        #     cv2.rectangle(frame, (ex,ey), (ex+ew, ey+eh), (0,255,0), 2)
+        #    cv2.rectangle(frame, (ex,ey), (ex+ew, ey+eh), (0,255,0), 2)
         smiles = detect_smile(gray, face)
         # for (sx,sy,sw,sh) in smiles:
         #     cv2.rectangle(frame, (sx,sy), (sx+sw, sy+sh), (0,0,255), 2)
@@ -84,31 +89,12 @@ while True:
         #     cv2.circle(frame, (int(lx), int(ly)), 3, (0,255,255), -1)
         # Apply squish effect
 
-        frame = face_augmemtation(frame, landmarks)
+        frame = face_overlay(frame, glasses, landmarks[8], landmarks[9], 2.2, 0, 160)
+        frame = face_overlay(frame, hat, landmarks[0], landmarks[2], 1, 0, 4500)
     
     frame_counter += 1
 
     cv2.imshow("Real-time Facial Landmarks", frame)
-    if cv2.waitKey(1) & 0xFF == 27:  # ESC
-        break
-
-cap.release()
-cv2.destroyAllWindows()
-
-'''
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-    
-    landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3, count_points=True)
-
-    if landmarks is None:
-        continue
-
-    frame = face_augmemtation(frame, landmarks)
-
-    cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
     if cv2.waitKey(1) & 0xFF == 27:  # ESC
         break
 
