@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from face_warp import squish_features, get_delaunay_triangles
+from face_warp import squish_features
 from face_augmentation import face_overlay
 import math
 
@@ -78,40 +78,40 @@ def approximate_landmarks(face, eyes, smiles):
 
 # open webcam
 
-cap = cv2.VideoCapture(0)
-frame_counter = 0
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+# cap = cv2.VideoCapture(0)
+# frame_counter = 0
+# while True:
+#     ret, frame = cap.read()
+#     if not ret:
+#         break
     
-    strength = 1.0 + 0.5 * math.sin(frame_counter * 0.05)
+#     strength = 1.0 + 0.5 * math.sin(frame_counter * 0.05)
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    face = detect_face(gray)
-    if face is not None:
-        x,y,w,h = face
-        cv2.rectangle(frame, (x,y), (x+w, y+h), (255,0,0), 2)
-        eyes = detect_eyes(gray, face)
-        # for (ex,ey,ew,eh) in eyes:
-        #     cv2.rectangle(frame, (ex,ey), (ex+ew, ey+eh), (0,255,0), 2)
-        smiles = detect_smile(gray, face)
-        # for (sx,sy,sw,sh) in smiles:
-        #     cv2.rectangle(frame, (sx,sy), (sx+sw, sy+sh), (0,0,255), 2)
-        landmarks = approximate_landmarks(face, eyes, smiles)
-        # for (lx, ly) in landmarks:
-        #     cv2.circle(frame, (int(lx), int(ly)), 3, (0,255,255), -1)
-        # Apply squish effect
-        frame, landmarks = squish_features(frame, landmarks, strength=strength, debug=False)
+#     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#     face = detect_face(gray)
+#     if face is not None:
+#         x,y,w,h = face
+#         cv2.rectangle(frame, (x,y), (x+w, y+h), (255,0,0), 2)
+#         eyes = detect_eyes(gray, face)
+#         # for (ex,ey,ew,eh) in eyes:
+#         #     cv2.rectangle(frame, (ex,ey), (ex+ew, ey+eh), (0,255,0), 2)
+#         smiles = detect_smile(gray, face)
+#         # for (sx,sy,sw,sh) in smiles:
+#         #     cv2.rectangle(frame, (sx,sy), (sx+sw, sy+sh), (0,0,255), 2)
+#         landmarks = approximate_landmarks(face, eyes, smiles)
+#         # for (lx, ly) in landmarks:
+#         #     cv2.circle(frame, (int(lx), int(ly)), 3, (0,255,255), -1)
+#         # Apply squish effect
+#         frame, landmarks = squish_features(frame, landmarks, strength=strength, debug=False)
 
-        frame = face_overlay(frame, glasses, landmarks[8], landmarks[9], 2.2, 0, 160)
-        frame = face_overlay(frame, hat, landmarks[0], landmarks[2], 1, 0, 4500)
+#         frame = face_overlay(frame, glasses, landmarks[8], landmarks[9], 2.2, 0, 160)
+#         frame = face_overlay(frame, hat, landmarks[0], landmarks[2], 1, 0, 4500)
     
-    frame_counter += 1
+#     frame_counter += 1
 
-    cv2.imshow("Real-time Facial Landmarks", frame)
-    if cv2.waitKey(1) & 0xFF == 27:  # ESC
-        break
+#     cv2.imshow("Real-time Facial Landmarks", frame)
+#     if cv2.waitKey(1) & 0xFF == 27:  # ESC
+#         break
 
-cap.release()
-cv2.destroyAllWindows()
+# cap.release()
+# cv2.destroyAllWindows()
