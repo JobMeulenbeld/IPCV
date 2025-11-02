@@ -209,7 +209,7 @@ class HandDetector:
             mag = np.hypot(avg_dx, avg_dy)
 
             # Direction determination
-            if mag > 1.5:
+            if mag > 1.0:
                 angle = (np.degrees(np.arctan2(avg_dy, avg_dx)) + 360) % 360
                 if 45 <= angle < 135:
                     direction = "DOWN"
@@ -219,7 +219,7 @@ class HandDetector:
                     direction = "UP"
                 else:
                     direction = "RIGHT"
-
+            print(direction)
         # Update for next frame
         self.prev_points, self.prev_frame = good_next.reshape(-1, 1, 2), gray
         return direction

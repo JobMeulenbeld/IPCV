@@ -3,7 +3,7 @@ import cv2
 
 
 class GestureDeterminer:
-    def __init__(self, choosing_gesture_threshold=60, direction_counter_threshold=10):
+    def __init__(self, choosing_gesture_threshold=20, direction_counter_threshold=5):
         self.open_counter = 0
         self.choose_gesture = False
         self.current_gesture_state = "none"

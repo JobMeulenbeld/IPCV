@@ -9,7 +9,7 @@ def get_delaunay_triangles(coords, width, height):
     rect = (0, 0, width, height)
     subdiv = cv2.Subdiv2D(rect)
 
-    # Insert all points (your landmarks)
+    # Insert all points
     for p in coords:
         subdiv.insert(tuple(p))
 
@@ -19,11 +19,11 @@ def get_delaunay_triangles(coords, width, height):
     # Convert to landmark indices
     triangles = []
     for t in triangleList:
-        pts = [(t[0], t[1]), (t[2], t[3]), (t[4], t[5])]
+        pts = [(t[0], t[1]), (t[2], t[3]), (t[4], t[5])] # 3 point in a triangle
         idx = []
         for p in pts:
             for i in range(len(coords)):
-                if np.linalg.norm(p - coords[i]) < 1.0:
+                if np.linalg.norm(p - coords[i]) < 1.0: # small threshold, if p lies in the coord point
                     idx.append(i)
                     break
         if len(idx) == 3:
@@ -34,6 +34,7 @@ def get_delaunay_triangles(coords, width, height):
 def squish_features(frame, landmarks, strength=0.7, debug=False, NeuralNet=False):
     global triangles_cache
 
+    # No landmarks, return original frame
     if landmarks is None:
         return frame, landmarks
     
@@ -42,6 +43,7 @@ def squish_features(frame, landmarks, strength=0.7, debug=False, NeuralNet=False
         src_pts = landmarks.astype(np.float32)
         dst_pts = src_pts.copy()
 
+        # If a neural net is used
         if NeuralNet:
             inner_idxs = list(range(17, 68))  # full inner face
             # eyebrows = list(range(17, 27))    # eyebrows
@@ -77,11 +79,11 @@ def squish_features(frame, landmarks, strength=0.7, debug=False, NeuralNet=False
 
             src_roi = frame[r1[1]:r1[1]+r1[3], r1[0]:r1[0]+r1[2]]
 
-            src_off = np.array([[p[0]-r1[0], p[1]-r1[1]] for p in src_tri], np.float32)
-            dst_off = np.array([[p[0]-r2[0], p[1]-r2[1]] for p in dst_tri], np.float32)
+            src_off = np.array([[p[0]-r1[0], p[1]-r1[1]] for p in src_tri], np.float32) # offset points wrt roi
+            dst_off = np.array([[p[0]-r2[0], p[1]-r2[1]] for p in dst_tri], np.float32) # offset points wrt roi
 
-            M = cv2.getAffineTransform(src_off, dst_off)
-            warped_roi = cv2.warpAffine(src_roi, M, (r2[2], r2[3]),
+            M = cv2.getAffineTransform(src_off, dst_off) # get affine transform matrix
+            warped_roi = cv2.warpAffine(src_roi, M, (r2[2], r2[3]), # transform source roi to destination roi
                                         flags=cv2.INTER_LINEAR,
                                         borderMode=cv2.BORDER_REFLECT_101)
 
@@ -89,7 +91,7 @@ def squish_features(frame, landmarks, strength=0.7, debug=False, NeuralNet=False
             mask = np.zeros((r2[3], r2[2], 3), np.float32)
             cv2.fillConvexPoly(mask, np.int32(dst_off), (1,1,1), 16, 0)
 
-            # 🔹Write directly into frame — no blending
+            # Write directly into frame
             y1, y2 = r2[1], r2[1]+r2[3]
             x1, x2 = r2[0], r2[0]+r2[2]
 
@@ -98,6 +100,7 @@ def squish_features(frame, landmarks, strength=0.7, debug=False, NeuralNet=False
             result[y1:y2, x1:x2] = existing
 
         return np.clip(result, 0, 255).astype(np.uint8), dst_pts
+    
     except Exception as e:
         print("Error in squish_features:", e)
         return frame, landmarks
