@@ -27,6 +27,7 @@ gesture_detector = GestureDeterminer()
 
 strength = 1.0
 state = 1
+closed_hand_counter = 0
 
 while True:
     ret, frame = cap.read()
@@ -41,22 +42,29 @@ while True:
     print("Current gesture state:", gesture)
 
     if gesture == "LEFT":
-        if(state < 4): 
+        if state < 4:
             state += 1
         elif state ==4:
             state = 1
     elif gesture == "RIGHT":
-        if(state > 1):
+        if state > 1:
             state -= 1
         elif state == 1:
             state = 4
     elif gesture == "UP":
-        if(strength <= 1.5): 
+        if strength <= 1.5:
             strength += 0.25
     elif gesture == "DOWN":
-        if(strength >= 0.5): 
+        if strength >= 0.5:
             strength -= 0.25
-
+    elif gesture == "closed_hand":
+        closed_hand_counter += 1
+        if closed_hand_counter >= 25:
+            state = 1
+            strength = 1
+            closed_hand_counter = 0
+    else:
+        closed_hand_counter = 0  # Reset counter if gesture changes
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     face = detect_face(gray)
     if face is not None:

@@ -17,23 +17,28 @@ def overlay_transparent(frame, overlay, x, y):
     h, w = frame.shape[:2]
     h_o, w_o = overlay.shape[:2]
 
-    # Clip overlay to stay within the frame
-    if x >= w or y >= h:
+    # If overlay is completely outside frame
+    if x >= w or y >= h or x + w_o <= 0 or y + h_o <= 0:
         return frame
 
-    w = min(w_o, w - x)
-    h = min(h_o, h - y)
+    # Clip overlay region
+    x1 = max(x, 0)
+    y1 = max(y, 0)
+    x2 = min(x + w_o, w)
+    y2 = min(y + h_o, h)
 
-    if w <= 0 or h <= 0:
-        return frame
+    overlay_x1 = max(0, -x)
+    overlay_y1 = max(0, -y)
+    overlay_x2 = overlay_x1 + (x2 - x1)
+    overlay_y2 = overlay_y1 + (y2 - y1)
 
-    overlay = overlay[0:h, 0:w]
-    overlay_img = overlay[:, :, :3]
-    mask = overlay[:, :, 3:] / 255.0  # alpha channel normalized to [0,1]
+    # Extract valid regions
+    overlay_cropped = overlay[overlay_y1:overlay_y2, overlay_x1:overlay_x2]
+    overlay_img = overlay_cropped[:, :, :3]
+    mask = overlay_cropped[:, :, 3:] / 255.0
 
-    # Perform alpha blending
-    frame[y:y+h, x:x+w] = (1.0 - mask) * frame[y:y+h, x:x+w] + mask * overlay_img
-
+    # Blend
+    frame[y1:y2, x1:x2] = (1.0 - mask) * frame[y1:y2, x1:x2] + mask * overlay_img
     return frame
 
 def face_overlay(frame, image, landmark1, landmark2, scale_factor, x_offset, y_offset):

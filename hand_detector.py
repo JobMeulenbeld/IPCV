@@ -148,7 +148,7 @@ class HandDetector:
 
     # Based on https://docs.opencv.org/3.4/d4/dee/tutorial_optical_flow.html
     def optical_flow_lucas_kanade(self, frame, roi):
-        direction = "NONE"
+        direction = "none"
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if roi is None:

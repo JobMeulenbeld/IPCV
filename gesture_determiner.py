@@ -1,15 +1,23 @@
 import math
+from collections import deque
+
 import cv2
 
 
 class GestureDeterminer:
-    def __init__(self, choosing_gesture_threshold=20, direction_counter_threshold=5):
+    def __init__(self, choosing_gesture_threshold=30, history_size=8, majority_threshold=6):
         self.open_counter = 0
         self.choose_gesture = False
-        self.current_gesture_state = "none"
+        self.current_gesture_state = ""
         self.choosing_gesture_threshold = choosing_gesture_threshold
-        self.direction_counter_threshold = direction_counter_threshold
-        self.direction_counters = {"UP": 0, "DOWN": 0, "LEFT": 0, "RIGHT": 0}
+
+        # self.direction_counter_threshold = direction_counter_threshold
+        # self.direction_counters = {"UP": 0, "DOWN": 0, "LEFT": 0, "RIGHT": 0}
+
+        self.direction_history = deque(maxlen=history_size)
+        self.history_size = history_size
+        self.majority_threshold = majority_threshold
+
 
     def detect_open_hand(self, fingertips, center, open_threshold=80, closed_threshold=70):
         if not fingertips or center is None:
@@ -28,12 +36,14 @@ class GestureDeterminer:
             return "unknown"
 
     def process_frame(self, frame, fingertips, center, direction, bounding_box):
+        self.current_gesture_state = "none"
         # Reset counters if hand dissapears
+
         if not fingertips:
             self.open_counter = 0
             self.choose_gesture = False
-            
-        self.current_gesture_state = "none"
+            self.current_gesture_state = "none"
+
         # Determine hand gesture and if we need to switch to choosing gesture
         hand_command = self.detect_open_hand(fingertips, center) if fingertips else "none"
 
@@ -43,26 +53,28 @@ class GestureDeterminer:
                 self.choose_gesture = True
                 self.current_gesture_state = "open_hand"
                 self.open_counter = 0
-                self.direction_counters = {"UP": 0, "DOWN": 0, "LEFT": 0, "RIGHT": 0}
 
         if hand_command == "closed":
             self.open_counter = max(self.open_counter - 5, 0)
+            self.current_gesture_state = "closed_hand"
 
         if self.choose_gesture:
             self.draw_text_top_left(frame, "choose the gesture", y_offset=30)
 
-            # Check if wants to change filter
-            for key in self.direction_counters.keys():
-                if key == direction:
-                    self.direction_counters[key] += 1
-                else:
-                    self.direction_counters[key] = 0
+            if direction and direction != "none":
+                self.direction_history.append(direction)
 
-                if self.direction_counters[key] >= self.direction_counter_threshold:
-                    self.current_gesture_state = direction
-                    self.choose_gesture = False
-                    self.open_counter = 0
-                    break
+                # Count frequency of directions
+                direction_counts = {d: self.direction_history.count(d) for d in set(self.direction_history)}
+
+                # Check if any direction has majority
+                for d, count in direction_counts.items():
+                    if count >= self.majority_threshold:
+                        self.current_gesture_state = d
+                        self.choose_gesture = False
+                        self.open_counter = 0
+                        self.direction_history.clear()
+                        break
         else:
             self.draw_text_top_left(frame, f"current state = {self.current_gesture_state}", y_offset=0)
             self.draw_text_top_left(frame, f"open_hand counter = {self.open_counter}", y_offset=30)

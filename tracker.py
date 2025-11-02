@@ -1,5 +1,5 @@
 class Tracker:
-    def __init__(self, alpha=0.4, max_missing_frames=20):
+    def __init__(self, alpha=0.2, max_missing_frames=10):
         self.alpha = alpha
         self.max_missing_frames = max_missing_frames
 
