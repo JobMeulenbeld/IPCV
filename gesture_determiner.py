@@ -32,8 +32,8 @@ class GestureDeterminer:
         if not fingertips:
             self.open_counter = 0
             self.choose_gesture = False
-            self.current_gesture_state = "none"
-
+            
+        self.current_gesture_state = "none"
         # Determine hand gesture and if we need to switch to choosing gesture
         hand_command = self.detect_open_hand(fingertips, center) if fingertips else "none"
 
@@ -67,7 +67,7 @@ class GestureDeterminer:
             self.draw_text_top_left(frame, f"current state = {self.current_gesture_state}", y_offset=0)
             self.draw_text_top_left(frame, f"open_hand counter = {self.open_counter}", y_offset=30)
 
-        return frame
+        return frame, self.current_gesture_state
 
     def draw_text_top_left(self, frame, text, y_offset=0, font_scale=1, color=(0, 255, 0), thickness=2):
         cv2.putText(frame, text, (10, 30 + y_offset), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness)

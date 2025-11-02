@@ -219,7 +219,7 @@ class HandDetector:
                     direction = "UP"
                 else:
                     direction = "RIGHT"
-            print(direction)
+
         # Update for next frame
         self.prev_points, self.prev_frame = good_next.reshape(-1, 1, 2), gray
         return direction
