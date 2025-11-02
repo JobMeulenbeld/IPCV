@@ -1,5 +1,3 @@
-import math
-
 import numpy as np
 import cv2
 
@@ -19,6 +17,11 @@ class HandDetector:
         self.calibrated = False
         self.calibration_interval = calibration_interval  # calibrate to new YCrCB threshold every 30 frames
         self.frame_counter = 0
+
+        # Lucas Kanade Tracking  variables
+        self.prev_frame = None
+        self.prev_points = None
+        self.mask = None
 
     def detect_face(self, frame):
         # We detect the face, based on the Haar Cascade xml file implemented in CV2
@@ -143,144 +146,140 @@ class HandDetector:
         largest_contour = max(valid_contours, key=cv2.contourArea)
         return largest_contour
 
-    def get_contour_info(self, largest_contour):
-        # This function is based on the post of: https://www.javaadvent.com/2012/12/hand-and-finger-detection-using-javacv.html
-        # get info about the contour's center of gravity and the principal axis (contour_axis_angle)
-        # needed to compute relative positions and normalize orientation, tells the dominant orientation
-        cog_point = (0, 0)
+    # Based on https://docs.opencv.org/3.4/d4/dee/tutorial_optical_flow.html
+    def optical_flow_lucas_kanade(self, frame, roi):
+        direction = "NONE"
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # Compute raw image moments
-        moments = cv2.moments(largest_contour)
+        if roi is None:
+            return direction
 
-        # Center of gravity calculation
-        m00 = moments['m00']
-        m10 = moments['m10']
-        m01 = moments['m01']
+        # Normalize ROI to [x1, y1, x2, y2]
+        x, y, w, h = roi
+        x1, y1, x2, y2 = x, y, x + w, y + h
 
-        if m00 != 0:
-            x_center = int(round(m10 / m00))
-            y_center = int(round(m01 / m00))
-            cog_point = (x_center, y_center)
+        # Sometimes bounding box fails, idk why
+        x1, y1, x2, y2 = map(int, [max(0, x1), max(0, y1),
+                                   min(frame.shape[1], x2),
+                                   min(frame.shape[0], y2)])
 
-        # Calculate central moments for orientation
-        m11 = moments['mu11']  # Central moment (1,1)
-        m20 = moments['mu20']  # Central moment (2,0)
-        m02 = moments['mu02']  # Central moment (0,2)
+        # ROI mask
+        roi_mask = np.zeros_like(gray)
+        roi_mask[y1:y2, x1:x2] = 255
 
-        contour_axis_angle = self.calculate_tilt(m11, m20, m02)
-        contour_axis_angle = 180 - contour_axis_angle
+        # Initialize points and frame if needed
+        if self.prev_frame is None or self.prev_points is None or len(self.prev_points) == 0:
+            self.prev_frame = gray
+            self.prev_points = cv2.goodFeaturesToTrack(
+                gray, maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7, mask=roi_mask)
+            self.mask = np.zeros_like(frame)
+            return direction
 
-        # Normalize angle to 0-360 range
-        contour_axis_angle %= 360
+        # Filter previous points within ROI
+        pts = self.prev_points.reshape(-1, 2)
+        inside = (pts[:, 0] >= x1) & (pts[:, 0] <= x2) & (pts[:, 1] >= y1) & (pts[:, 1] <= y2)
+        self.prev_points = self.prev_points[inside].reshape(-1, 1, 2)
 
-        return cog_point, contour_axis_angle
+        # If no points left, redetect
+        if len(self.prev_points) == 0:
+            self.prev_points = cv2.goodFeaturesToTrack(
+                gray, maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7, mask=roi_mask)
+            self.prev_frame = gray
+            return direction
 
-    def calculate_tilt(self, m11, m20, m02):
-        diff = m20 - m02
+        # Compute optical flow
+        next_pts, status, _ = cv2.calcOpticalFlowPyrLK(
+            self.prev_frame, gray, self.prev_points, None,
+            winSize=(15, 15), maxLevel=2,
+            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
+        )
 
-        # Handle special cases where denominator would be zero
-        if diff == 0:
-            if m11 == 0:
-                return 0
-            elif m11 > 0:
-                return 45
-            else:  # m11 < 0
-                return -45
+        # Filter valid points
+        if next_pts is None or status is None:
+            self.prev_points, self.prev_frame = None, gray
+            return direction
 
-        # Calculate the angle using the formula: θ = 0.5 * arctan(2*m11 / (m20 - m02))
-        theta = 0.5 * math.atan2(2 * m11, diff)
-        tilt = int(round(math.degrees(theta)))
+        good_prev = self.prev_points[status.flatten() == 1]
+        good_next = next_pts[status.flatten() == 1]
 
-        # Handle different quadrants based on moment signs
-        if (diff > 0) and (m11 == 0):
-            return 0
-        elif (diff < 0) and (m11 == 0):
-            return -90
-        elif (diff > 0) and (m11 > 0):  # 0 to 45 degrees
-            return tilt
-        elif (diff > 0) and (m11 < 0):  # -45 to 0
-            return 180 + tilt  # Change to counter-clockwise angle
-        elif (diff < 0) and (m11 > 0):  # 45 to 90
-            return tilt
-        elif (diff < 0) and (m11 < 0):  # -90 to -45
-            return 180 + tilt  # Change to counter-clockwise angle
-        return 0
+        # Compute average motion vector
+        if len(good_prev) > 0:
+            movement = good_next - good_prev
+            avg_dx, avg_dy = np.mean(movement, axis=0).ravel()
+            mag = np.hypot(avg_dx, avg_dy)
 
-    def cluster_points(self, points, threshold=20):
-        """
-        Merge points that are closer than threshold into a single point (centroid).
-        """
-        if not points:
-            return []
+            # Direction determination
+            if mag > 1.5:
+                angle = (np.degrees(np.arctan2(avg_dy, avg_dx)) + 360) % 360
+                if 45 <= angle < 135:
+                    direction = "DOWN"
+                elif 135 <= angle < 225:
+                    direction = "LEFT"
+                elif 225 <= angle < 315:
+                    direction = "UP"
+                else:
+                    direction = "RIGHT"
 
-        clustered = []
-        used = [False] * len(points)
+        # Update for next frame
+        self.prev_points, self.prev_frame = good_next.reshape(-1, 1, 2), gray
+        return direction
 
-        for i, pt in enumerate(points):
-            if used[i]:
-                continue
-            cluster = [pt]
-            used[i] = True
-            for j, other in enumerate(points):
-                if not used[j]:
-                    dist = math.hypot(pt[0] - other[0], pt[1] - other[1])
-                    if dist < threshold:
-                        cluster.append(other)
-                        used[j] = True
-            # Take average as representative
-            x_avg = int(sum(p[0] for p in cluster) / len(cluster))
-            y_avg = int(sum(p[1] for p in cluster) / len(cluster))
-            clustered.append((x_avg, y_avg))
-        return clustered
-
-    def find_fingertips(self, contour, cog_point, contour_axis_angle, min_distance=20):
+    def determine_fingertips(self, contour, max_fingertips=5):
+        # No contour provided
         if contour is None or len(contour) == 0:
-            return []
+            return [], None  # Return empty fingertips and None center
 
-        # Get convex hull and convexity defects
+        # Use the convex hull for determining position fingertips, need at least 3 points for convexity defects
         hull = cv2.convexHull(contour, returnPoints=False)
+        if len(hull) < 3:
+            return [], None
+
+        # Compute convexity defects
         defects = cv2.convexityDefects(contour, hull)
+        if defects is None:
+            return [], None
+
+        # Calculate the center of the hand
+        M = cv2.moments(contour)
+        if M["m00"] == 0:
+            return [], None
+
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+        center = (cX, cY)
+
+        # Find the hull points that are far from defects and above the center
+        candidates = []
+        for i in range(defects.shape[0]):
+            s, e, f, d = defects[i, 0]
+            start_pt = tuple(contour[s][0])
+            end_pt = tuple(contour[e][0])
+
+            # Only consider hull points above center
+            for pt in [start_pt, end_pt]:
+                pt_arr = np.array(pt)
+                if pt_arr[1] < center[1] + 40:  # small tolerance for thumb and pinky
+                    candidates.append(pt)
+
+        # Remove duplicates
+        candidates = list(set(candidates))
+
+        # Sort by distance to center, descending
+        candidates.sort(key=lambda pt: np.linalg.norm(np.array(pt) - np.array(center)), reverse=True)
+
+        # Filter close points
         fingertips = []
+        min_distance_between_fingers = 20
+        for pt in candidates:
+            if all(np.linalg.norm(np.array(pt) - np.array(fpt)) >= min_distance_between_fingers for fpt in fingertips):
+                fingertips.append(pt)
+            if len(fingertips) >= max_fingertips:
+                break
 
-        if defects is not None:
-            for i in range(defects.shape[0]):
-                s, e, f, d = defects[i, 0]
-                start = tuple(contour[s][0])
-                end = tuple(contour[e][0])
+        # Sort it based on x position
+        fingertips.sort(key=lambda pt: pt[0])
 
-                for pt in [start, end]:
-                    # Keep points far enough from center of gravity
-                    if math.hypot(pt[0] - cog_point[0], pt[1] - cog_point[1]) > min_distance:
-                        fingertips.append(pt)
-
-        # Remove duplicates / cluster nearby points
-        def cluster_points(points, threshold=25):
-            clustered = []
-            for pt in points:
-                if not any(math.hypot(pt[0] - c[0], pt[1] - c[1]) < threshold for c in clustered):
-                    clustered.append(pt)
-            return clustered
-
-        fingertips = cluster_points(fingertips)
-
-        # --- Simple thumb detection based on side ---
-        if contour_axis_angle > 0:
-            thumb_candidates = [pt for pt in fingertips if pt[0] < cog_point[0] and pt[1] >= cog_point[1] - 20]
-        else:
-            thumb_candidates = [pt for pt in fingertips if pt[0] > cog_point[0] and pt[1] >= cog_point[1] - 20]
-
-        thumb = max(thumb_candidates, key=lambda pt: abs(pt[0] - cog_point[0])) if thumb_candidates else None
-
-        if thumb in fingertips:
-            fingertips.remove(thumb)
-
-        # Keep up to max 4 fingers + thumb
-        fingertips = sorted(fingertips, key=lambda pt: pt[1])[:4]
-        # Put thumb at the beginning
-        if thumb:
-            fingertips = [thumb] + fingertips
-
-        return fingertips
+        return fingertips, center
 
     def process_frame(self, frame, tracker, gesture_detector):
         # Face always needed, so assign it directly
@@ -305,21 +304,20 @@ class HandDetector:
         right_hand_contour = self.detect_hand_contours(frame, skin_mask)
         frame = self.draw_contour(frame, right_hand_contour)
 
-        # Get contour info
-        cog_point, contour_axis_angle = self.get_contour_info(right_hand_contour)
-        fingertips = self.find_fingertips(right_hand_contour, cog_point, contour_axis_angle)
+        # Get the fingerpoints
+        fingertips, center = self.determine_fingertips(right_hand_contour)
 
-        # Start with the tracking
-        smoothed_points, smoothed_cog_point = tracker.update(fingertips, cog_point)
+        # Track the bounding box
+        smoothed_boundingbox, smoothed_center, smoothed_fingertips = tracker.update(
+            cv2.boundingRect(right_hand_contour), center, fingertips)
+        frame = self.draw_fingertips(frame, smoothed_fingertips, smoothed_center)
 
-        # Visualize it
-        frame = self.visualize_fingertips(frame, right_hand_contour, smoothed_cog_point, contour_axis_angle,
-                                          smoothed_points)
-        print(contour_axis_angle)
+        # Start with motion tracking based on lucas kanade
+        direction = self.optical_flow_lucas_kanade(frame, smoothed_boundingbox)
 
-        print(fingertips)
-
-        frame = gesture_detector.process_frame(frame, smoothed_points, smoothed_cog_point, contour_axis_angle)
+        # Check the gesture
+        frame = gesture_detector.process_frame(frame, smoothed_fingertips, smoothed_center, direction,
+                                               smoothed_boundingbox)
 
         self.frame_counter += 1
 
@@ -334,41 +332,32 @@ class HandDetector:
             return frame
 
     def draw_fingertips(self, frame, fingertips, center):
+        if fingertips is None or center is None:
+            return frame
+
+        # Ensure center is a tuple of ints
+        center = tuple(map(int, center))
+
         # Draw center point
         cv2.circle(frame, center, 6, (0, 0, 255), -1)  # Red center
 
         # Draw fingertips
         for i, fingertip in enumerate(fingertips):
+            if fingertip is None:
+                continue
+
+            # Ensure fingertip is a tuple of ints
+            fingertip = tuple(map(int, fingertip))
+
             cv2.circle(frame, fingertip, 5, (255, 0, 0), -1)  # Blue fingertips
-            cv2.putText(frame, str(i + 1), (fingertip[0] + 5, fingertip[1] - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            cv2.putText(
+                frame, str(i + 1),
+                (fingertip[0] + 5, fingertip[1] - 5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1
+            )
 
         return frame
 
-    def visualize_fingertips(self, image, contour, cog_point, angle, fingertips):
-        if image is None or contour is None or cog_point is None or angle is None or fingertips is None:
-            return image
-
-        vis_img = image.copy()
-
-        # Draw contour
-        cv2.drawContours(vis_img, [contour], -1, (0, 255, 0), 2)
-
-        # Draw COG
-        cv2.circle(vis_img, cog_point, 5, (255, 0, 0), -1)
-
-        # Draw major axis line
-        length = 100  # line length for visualization
-        theta = math.radians(angle)
-        x2 = int(cog_point[0] + length * math.cos(theta))
-        y2 = int(cog_point[1] - length * math.sin(theta))  # OpenCV y-axis points down
-        cv2.line(vis_img, cog_point, (x2, y2), (255, 0, 255), 2)
-
-        # Draw fingertips
-        if fingertips is not None:
-            for tip in fingertips:
-                cv2.circle(vis_img, tip, 8, (0, 0, 255), -1)
-                cv2.putText(vis_img, f"{tip}", (tip[0] + 5, tip[1] - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-
-        return vis_img
+    # Draw the bounding box around the hand contour
+    # x, y, w, h = cv2.boundingRect(right_hand_contour)
+    # cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)

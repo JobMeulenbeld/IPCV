@@ -5,16 +5,13 @@ from hand_detector import HandDetector
 from tracker import Tracker
 from landmarks import get_landmarks
 
-prev_gray = None
-
-
 modelFile = "res10_300x300_ssd_iter_140000.caffemodel"
 configFile = "deploy.prototxt"
 face_net = cv2.dnn.readNetFromCaffe(configFile, modelFile)
 
 
-facemark = cv2.face.createFacemarkLBF()
-facemark.loadModel("lbfmodel.yaml")
+#facemark = cv2.face.createFacemarkLBF()
+#facemark.loadModel("lbfmodel.yaml")
 
 # open webcam
 cap = cv2.VideoCapture(0)
@@ -32,7 +29,7 @@ while True:
         break
     frame = cv2.flip(frame, 1)  # Flip horizontally
 
-    landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3)
+    #landmarks = get_landmarks(frame, smooth_landmarks=landmarks, face_net=face_net, facemark=facemark, alpha=0.3)
 
     frame = hand_detector.process_frame(frame, tracker, gesture_detector)
 

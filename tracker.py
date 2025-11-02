@@ -1,50 +1,66 @@
 class Tracker:
-    def __init__(self, alpha=0.2, max_missing_frames=30):
+    def __init__(self, alpha=0.4, max_missing_frames=20):
         self.alpha = alpha
         self.max_missing_frames = max_missing_frames
-        self.tracked_fingertips = []  # List of smoothed fingertip positions
-        self.tracked_center = None  # Smoothed center position
-        self.missing_count = 0  # How many frames no hand was detected
 
-    def update(self, fingertips, center):
-        # If no hand detected in this frame
-        if not fingertips or center is None:
-            self.missing_count += 1
+        # Tracked / smoothed entities
+        self.tracked_bbox = None
+        self.tracked_center = None
+        self.tracked_fingertips = []
 
-            # If we've been missing too many frames, reset everything
-            if self.missing_count > self.max_missing_frames:
-                self.tracked_fingertips = []
-                self.tracked_center = None
-            return self.tracked_fingertips, self.tracked_center
-
-        # Reset missing counter since we have a detection
         self.missing_count = 0
 
-        # Smooth the center point
+    def update(self, bbox, center, fingertips):
+        if bbox is None or center is None:
+            self.missing_count += 1
+            if self.missing_count > self.max_missing_frames:
+                self.reset()
+            return self.tracked_bbox, self.tracked_center, self.tracked_fingertips
+
+        # Detection available, means that we can reset the missing counter
+        self.missing_count = 0
+
+        # smooth the bounding box
+        if self.tracked_bbox is None:
+            self.tracked_bbox = bbox
+        else:
+            self.tracked_bbox = self.ema_update_box(self.tracked_bbox, bbox)
+
+        # Smooth the center
         if self.tracked_center is None:
             self.tracked_center = center
         else:
-            self.tracked_center = self.ema_update(self.tracked_center, center)
+            self.tracked_center = self.ema_update_point(self.tracked_center, center)
 
         # Smooth the fingertips
         smoothed_fingertips = []
-
-        for i, current_tip in enumerate(fingertips):
-            if i < len(self.tracked_fingertips):
-                # Update existing fingertip with EMA
-                smoothed_tip = self.ema_update(self.tracked_fingertips[i], current_tip)
+        if not fingertips:
+            self.tracked_fingertips = smoothed_fingertips
+        else:
+            for i, current_tip in enumerate(fingertips):
+                if i < len(self.tracked_fingertips):
+                    smoothed_tip = self.ema_update_point(self.tracked_fingertips[i], current_tip)
+                else:
+                    smoothed_tip = current_tip
                 smoothed_fingertips.append(smoothed_tip)
-            else:
-                # New fingertip - just use current position
-                smoothed_fingertips.append(current_tip)
+            self.tracked_fingertips = smoothed_fingertips
 
-        # Update tracked fingertips
-        self.tracked_fingertips = smoothed_fingertips
+        return self.tracked_bbox, self.tracked_center, self.tracked_fingertips
 
-        return self.tracked_fingertips, self.tracked_center
-
-    def ema_update(self, previous, current):
-        return (
-            int(self.alpha * current[0] + (1 - self.alpha) * previous[0]),
-            int(self.alpha * current[1] + (1 - self.alpha) * previous[1])
+    def ema_update_box(self, previous, current):
+        return tuple(
+            self.alpha * c + (1 - self.alpha) * p
+            for p, c in zip(previous, current)
         )
+
+    def ema_update_point(self, previous, current):
+        return (
+            self.alpha * current[0] + (1 - self.alpha) * previous[0],
+            self.alpha * current[1] + (1 - self.alpha) * previous[1]
+        )
+
+    def reset(self):
+        self.tracked_bbox = None
+        self.tracked_center = None
+        self.tracked_fingertips = []
+        self.missing_count = 0
