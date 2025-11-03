@@ -2,8 +2,7 @@ import cv2
 from gesture_determiner import GestureDeterminer
 from hand_detector import HandDetector
 from tracker import Tracker
-from face_feature import face_feature
-from face_warp import squish_features
+from face_feature import FaceFeature
 from face_augmentation import face_augmentation
 
 def handle_gesture(gesture, state, strength, closed_hand_counter):
