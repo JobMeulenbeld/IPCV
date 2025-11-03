@@ -5,7 +5,7 @@ from hand_detector import HandDetector
 from tracker import Tracker
 from face_feature import detect_face, detect_eyes, detect_smile, approximate_landmarks
 from face_warp import squish_features
-from face_augmentation import face_overlay
+from face_augmentation import face_augmentation
 
 modelFile = "res10_300x300_ssd_iter_140000.caffemodel"
 configFile = "deploy.prototxt"
@@ -28,6 +28,9 @@ gesture_detector = GestureDeterminer()
 strength = 1.0
 state = 1
 closed_hand_counter = 0
+
+glasses_overlay = face_augmentation(glasses, 2.2, 0, 160)
+hat_overlay = face_augmentation(hat, 1, 0, 4500)
 
 while True:
     ret, frame = cap.read()
@@ -86,12 +89,12 @@ while True:
         #nothing
         pass
     elif state == 2:
-        frame = face_overlay(frame, glasses, landmarks[8], landmarks[9], 2.2, 0, 160)
+        frame = glasses_overlay.face_overlay(frame, landmarks[8], landmarks[9])
     elif state == 3:
-        frame = face_overlay(frame, hat, landmarks[0], landmarks[2], 1, 0, 4500)
+        frame = hat_overlay.face_overlay(frame, landmarks[0], landmarks[2])
     elif state == 4:
-        frame = face_overlay(frame, glasses, landmarks[8], landmarks[9], 2.2, 0, 160)
-        frame = face_overlay(frame, hat, landmarks[0], landmarks[2], 1, 0, 4500)
+        frame = glasses_overlay.face_overlay(frame, landmarks[8], landmarks[9])
+        frame = hat_overlay.face_overlay(frame, landmarks[0], landmarks[2])
 
     cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
     if cv2.waitKey(1) & 0xFF == 27:  # ESC

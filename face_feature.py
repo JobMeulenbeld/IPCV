@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from face_warp import squish_features
-from face_augmentation import face_overlay
+#from face_augmentation import face_overlay
 import math
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
