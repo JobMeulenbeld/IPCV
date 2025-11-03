@@ -42,6 +42,8 @@ def main():
     tracker = Tracker()
     gesture_detector = GestureDeterminer()
     face_feature_detector = FaceFeature()
+
+    #Initialize face warping
     face_warping = FaceWarp()
 
     #Initialze starting variables

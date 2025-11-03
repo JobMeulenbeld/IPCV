@@ -1,21 +1,22 @@
 import cv2
 import numpy as np
-#from face_warp import FaceWarp
-import math
 
 class FaceFeature:
-    def __init__(self):
+    def __init__(self, smoothing_factor=0.7):
+        self.alpha = smoothing_factor
         self.previous_landmarks = None
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         self.eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
         self.smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_smile.xml")
 
-    def smooth_landmarks(self, prev_pts, new_pts, alpha=0.7):
-        if prev_pts is None:
+    def smooth_landmarks(self, new_pts):
+        """Smooth landmarks using exponential moving average."""
+        if self.previous_landmarks is None:
             return new_pts
-        return (alpha * prev_pts) + ((1 - alpha) * new_pts)
+        return (self.alpha * self.previous_landmarks) + ((1 - self.alpha) * new_pts)
 
     def detect_face(self, gray):
+        """Detect face in grayscale image."""
         faces = self.face_cascade.detectMultiScale(gray, 1.2, 5, minSize=(100,100))
         if len(faces) == 0: return None
         # pick largest
@@ -23,12 +24,14 @@ class FaceFeature:
         return (x,y,w,h)
 
     def detect_eyes(self, gray, face):
+        """Detect eyes within the face region."""
         x,y,w,h = face
         roi_gray = gray[y:y+h//2, x:x+w]
         eyes = self.eye_cascade.detectMultiScale(roi_gray, 1.1, 10, minSize=(30,30))
         return [(ex+x, ey+y, ew, eh) for (ex,ey,ew,eh) in eyes]
 
     def detect_smile(self, gray, face):
+        """Detect smile within the face region."""
         x,y,w,h = face
         my0 = int(y + h*0.6)
         roi_gray = gray[my0:y+h, x:x+w]
@@ -36,6 +39,7 @@ class FaceFeature:
         return [(sx+x, sy+my0, sw, sh) for (sx,sy,sw,sh) in smiles]
 
     def approximate_landmarks(self, face, eyes, smiles):
+        """Approximate facial landmarks based on detected features."""
         x, y, w, h = face
 
         # --- Basic face corners
@@ -79,6 +83,7 @@ class FaceFeature:
         return np.array(landmarks, np.float32)
 
     def process_frame(self, frame, debug=False):
+        """Process frame to detect face and approximate landmarks."""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         face = self.detect_face(gray)
         if face is not None:
@@ -93,12 +98,10 @@ class FaceFeature:
                 for (sx,sy,sw,sh) in smiles:
                     cv2.rectangle(frame, (sx,sy), (sx+sw, sy+sh), (0,0,255), 2)
             landmarks = self.approximate_landmarks(face, eyes, smiles)
-            landmarks  = self.smooth_landmarks(self.previous_landmarks, landmarks, alpha=0.7)
+            landmarks  = self.smooth_landmarks(landmarks)
             if debug:
                 for (lx, ly) in landmarks:
                     cv2.circle(frame, (int(lx), int(ly)), 3, (0,255,255), -1)
             self.previous_landmarks = landmarks
-            # Apply squish effect
-            #frame, landmarks = self.face_warp.squish_features(frame, landmarks, strength=strength, debug=debug)
         return frame, self.previous_landmarks
 
