@@ -4,6 +4,7 @@ from hand_detector import HandDetector
 from tracker import Tracker
 from face_feature import FaceFeature
 from face_augmentation import face_augmentation
+from face_warp import FaceWarp
 
 def handle_gesture(gesture, state, strength, closed_hand_counter):
     """Update the overlay state and strength based on the detected gesture."""
@@ -40,7 +41,8 @@ def main():
     hand_detector = HandDetector()
     tracker = Tracker()
     gesture_detector = GestureDeterminer()
-    face_feature_detector = face_feature()
+    face_feature_detector = FaceFeature()
+    face_warping = FaceWarp()
 
     #Initialze starting variables
     strength = 1.0
@@ -64,11 +66,11 @@ def main():
         state, strength, closed_hand_counter = handle_gesture(gesture, state, strength, closed_hand_counter)
 
         #Detect facial landmarks
-        landmarks = face_feature_detector.get_landmarks(frame)
+        frame, landmarks = face_feature_detector.process_frame(frame)
 
         #Warp facial features based on strength
         if landmarks is not None:
-            frame, landmarks = squish_features(frame, landmarks, strength=strength, debug=False)
+            frame, landmarks = face_warping.squish_features(frame, landmarks, strength=strength, debug=False)
 
         #Overlay augmentations based on current state
         if state == 2:

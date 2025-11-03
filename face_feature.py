@@ -1,15 +1,14 @@
 import cv2
 import numpy as np
-from face_warp import FaceWarp
+#from face_warp import FaceWarp
 import math
 
 class FaceFeature:
     def __init__(self):
-        self.face_warp = FaceWarp()
+        self.previous_landmarks = None
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         self.eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
         self.smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_smile.xml")
-
 
     def smooth_landmarks(self, prev_pts, new_pts, alpha=0.7):
         if prev_pts is None:
@@ -79,7 +78,7 @@ class FaceFeature:
 
         return np.array(landmarks, np.float32)
 
-    def process_frame(self, frame, strength, previous_landmarks, debug=False):
+    def process_frame(self, frame, debug=False):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         face = self.detect_face(gray)
         if face is not None:
@@ -94,35 +93,12 @@ class FaceFeature:
                 for (sx,sy,sw,sh) in smiles:
                     cv2.rectangle(frame, (sx,sy), (sx+sw, sy+sh), (0,0,255), 2)
             landmarks = self.approximate_landmarks(face, eyes, smiles)
-            landmarks  = self.smooth_landmarks(previous_landmarks, landmarks, alpha=0.7)
+            landmarks  = self.smooth_landmarks(self.previous_landmarks, landmarks, alpha=0.7)
             if debug:
                 for (lx, ly) in landmarks:
                     cv2.circle(frame, (int(lx), int(ly)), 3, (0,255,255), -1)
-            previous_landmarks = landmarks
+            self.previous_landmarks = landmarks
             # Apply squish effect
-            frame, landmarks = self.face_warp.squish_features(frame, landmarks, strength=strength, debug=debug)
-        return frame, previous_landmarks
-# open webcam
+            #frame, landmarks = self.face_warp.squish_features(frame, landmarks, strength=strength, debug=debug)
+        return frame, self.previous_landmarks
 
-# cap = cv2.VideoCapture(0)
-# frame_counter = 0
-# previous_landmarks = None
-# face_feature = FaceFeature()
-
-# while True:
-#     ret, frame = cap.read()
-#     if not ret:
-#         break
-    
-#     strength = 1.0 + 0.5 * math.sin(frame_counter * 0.05)
-
-#     frame, previous_landmarks = face_feature.process_frame(frame, strength, previous_landmarks, debug=False)
-    
-#     frame_counter += 1
-
-#     cv2.imshow("Real-time Facial Landmarks", frame)
-#     if cv2.waitKey(1) & 0xFF == 27:  # ESC
-#         break
-
-# cap.release()
-# cv2.destroyAllWindows()
