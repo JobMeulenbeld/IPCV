@@ -17,29 +17,26 @@ def overlay_transparent(frame, overlay, x, y):
     h, w = frame.shape[:2]
     h_o, w_o = overlay.shape[:2]
 
-    # If overlay is completely outside frame
-    if x >= w or y >= h or x + w_o <= 0 or y + h_o <= 0:
+    # Clip overlay to stay within the frame
+    if x >= w or y >= h:
         return frame
 
-    # Clip overlay region
-    x1 = max(x, 0)
-    y1 = max(y, 0)
-    x2 = min(x + w_o, w)
-    y2 = min(y + h_o, h)
+    w = min(w_o, w - x)
+    h = min(h_o, h - y)
 
-    overlay_x1 = max(0, -x)
-    overlay_y1 = max(0, -y)
-    overlay_x2 = overlay_x1 + (x2 - x1)
-    overlay_y2 = overlay_y1 + (y2 - y1)
+    if w <= 0 or h <= 0:
+        return frame
 
-    # Extract valid regions
-    overlay_cropped = overlay[overlay_y1:overlay_y2, overlay_x1:overlay_x2]
-    overlay_img = overlay_cropped[:, :, :3]
-    mask = overlay_cropped[:, :, 3:] / 255.0
+    overlay = overlay[0:h, 0:w]
+    overlay_img = overlay[:, :, :3]
+    mask = overlay[:, :, 3:] / 255.0  # alpha channel normalized to [0,1]
 
-    # Blend
-    frame[y1:y2, x1:x2] = (1.0 - mask) * frame[y1:y2, x1:x2] + mask * overlay_img
+    # Perform alpha blending
+    frame[y:y+h, x:x+w] = (1.0 - mask) * frame[y:y+h, x:x+w] + mask * overlay_img
+
     return frame
+
+
 
 def face_overlay(frame, image, landmark1, landmark2, scale_factor, x_offset, y_offset):
     height, width, channels = image.shape
@@ -61,7 +58,12 @@ def face_overlay(frame, image, landmark1, landmark2, scale_factor, x_offset, y_o
     image_resized = cv2.resize(image, (image_width_resized, image_height_resized))
 
     top_left = (int(x1 - image_x_offset), int(y1 - image_y_offset))
-    #bottom_right = (int(top_left[0] + image_width_resized), int(top_left[1] + image_height_resized))
+    bottom_right = (int(top_left[0] + image_width_resized), int(top_left[1] + image_height_resized))
+
+    if top_left[1] < 0:
+        crop_top = abs(top_left[1])
+        image_resized = image_resized[crop_top:, :, :]  # remove the top rows
+        top_left = (top_left[0], 0)
 
     frame = overlay_transparent(frame, image_resized, int(top_left[0]), int(top_left[1]))
     return frame
