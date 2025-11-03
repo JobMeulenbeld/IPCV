@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 from face_warp import FaceWarp
-from face_augmentation import face_overlay
 import math
 
 class FaceFeature:
