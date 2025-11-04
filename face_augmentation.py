@@ -94,7 +94,7 @@ class face_augmentation:
             image_resized = image_resized[crop_top:, :, :]  # remove the top rows
             smoothed_top_left[1] = 0
 
-        print(smoothed_top_left)
+        # print(smoothed_top_left)
 
         # Overlay the image onto the frame
         frame = self.overlay_transparent(frame, image_resized, int(smoothed_top_left[0]), int(smoothed_top_left[1]))

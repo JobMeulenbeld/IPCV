@@ -51,6 +51,11 @@ def main():
     state = 1
     closed_hand_counter = 0
 
+    #Debug settings
+    debug_gesture = False
+    debug_face_feature = False
+    debug_face_warp = False
+
     #Initialize webcam
     cap = cv2.VideoCapture(0)
 
@@ -61,18 +66,18 @@ def main():
         frame = cv2.flip(frame, 1)  # Flip horizontally
 
         #Detect hand and gesture
-        frame, gesture = hand_detector.process_frame(frame, tracker, gesture_detector)
+        frame, gesture = hand_detector.process_frame(frame, tracker, gesture_detector, debug=debug_gesture)
         print("Current gesture state:", gesture)
 
         #Update state, strength, and closed hand counter based on gesture
         state, strength, closed_hand_counter = handle_gesture(gesture, state, strength, closed_hand_counter)
 
         #Detect facial landmarks
-        frame, landmarks = face_feature_detector.process_frame(frame)
+        frame, landmarks = face_feature_detector.process_frame(frame, debug=debug_face_feature)
 
         #Warp facial features based on strength
         if landmarks is not None:
-            frame, landmarks = face_warping.squish_features(frame, landmarks, strength=strength, debug=False)
+            frame, landmarks = face_warping.squish_features(frame, landmarks, strength=strength, debug=debug_face_warp)
 
         #Overlay augmentations based on current state
         if state == 2:
