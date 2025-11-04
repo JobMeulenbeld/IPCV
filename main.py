@@ -89,7 +89,7 @@ def main():
             frame = hat_overlay.face_overlay(frame, landmarks[0], landmarks[2])
 
         # Display the resulting frame
-        cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
+        cv2.imshow("IPCV Final assignment", frame)
         if cv2.waitKey(1) & 0xFF == 27:  # ESC
             break
     
