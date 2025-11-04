@@ -67,7 +67,6 @@ def main():
 
         #Detect hand and gesture
         frame, gesture = hand_detector.process_frame(frame, tracker, gesture_detector, debug=debug_gesture)
-        print("Current gesture state:", gesture)
 
         #Update state, strength, and closed hand counter based on gesture
         state, strength, closed_hand_counter = handle_gesture(gesture, state, strength, closed_hand_counter)
