@@ -18,28 +18,26 @@ class face_augmentation:
         Overlay RGBA `overlay` image onto BGR `frame` at position (x, y).
         Handles alpha blending and clipping at image borders.
         """
-        try:
-            h, w = frame.shape[:2]
-            h_o, w_o = overlay.shape[:2]
 
-            # Clip overlay to stay within the frame
-            if x >= w or y >= h:
+        h, w = frame.shape[:2]
+        h_o, w_o = overlay.shape[:2]
+
+        # Clip overlay to stay within the frame
+        if x >= w or y >= h:
                 return frame
             
-            # If overlay is larger than frame return the frame
-            w = min(w_o, w - x)
-            h = min(h_o, h - y)
-            if w <= 0 or h <= 0:
-                return frame
+        # If overlay is larger than frame return the frame
+        w = min(w_o, w - x)
+        h = min(h_o, h - y)
+        if w <= 0 or h <= 0:
+            return frame
 
-            overlay = overlay[0:h, 0:w]
-            overlay_img = overlay[:, :, :3]
-            mask = overlay[:, :, 3:] / 255.0  # alpha channel normalized to [0,1]
+        overlay = overlay[0:h, 0:w]
+        overlay_img = overlay[:, :, :3]
+        mask = overlay[:, :, 3:] / 255.0  # alpha channel normalized to [0,1]
 
-            # Perform alpha blending
-            frame[y:y+h, x:x+w] = (1.0 - mask) * frame[y:y+h, x:x+w] + mask * overlay_img
-        except Exception as e:
-            print("Error in overlay_transparent:", e)
+        # Perform alpha blending
+        frame[y:y+h, x:x+w] = (1.0 - mask) * frame[y:y+h, x:x+w] + mask * overlay_img
         return frame
     
     def smoothing(self, top_left, size):
@@ -92,9 +90,11 @@ class face_augmentation:
 
         # Handle cropping if the overlay goes above the frame
         if smoothed_top_left[1] < 0:
-            crop_top = abs(smoothed_top_left[1])
+            crop_top = int(-smoothed_top_left[1])
             image_resized = image_resized[crop_top:, :, :]  # remove the top rows
-            top_left = (smoothed_top_left[0], 0)
+            smoothed_top_left[1] = 0
+
+        print(smoothed_top_left)
 
         # Overlay the image onto the frame
         frame = self.overlay_transparent(frame, image_resized, int(smoothed_top_left[0]), int(smoothed_top_left[1]))
