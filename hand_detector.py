@@ -281,7 +281,7 @@ class HandDetector:
 
         return fingertips, center
 
-    def process_frame(self, frame, tracker, gesture_detector):
+    def process_frame(self, frame, tracker, gesture_detector, debug=False):
         # Face always needed, so assign it directly
         detected_face = self.detect_face(frame)
 
@@ -302,7 +302,8 @@ class HandDetector:
 
         # Get the right hand contour
         right_hand_contour = self.detect_hand_contours(frame, skin_mask)
-        frame = self.draw_contour(frame, right_hand_contour)
+        if debug:
+            frame = self.draw_contour(frame, right_hand_contour)
 
         # Get the fingerpoints
         fingertips, center = self.determine_fingertips(right_hand_contour)
@@ -310,7 +311,8 @@ class HandDetector:
         # Track the bounding box
         smoothed_boundingbox, smoothed_center, smoothed_fingertips = tracker.update(
             cv2.boundingRect(right_hand_contour), center, fingertips)
-        frame = self.draw_fingertips(frame, smoothed_fingertips, smoothed_center)
+        if debug:
+            frame = self.draw_fingertips(frame, smoothed_fingertips, smoothed_center)
 
         # Start with motion tracking based on lucas kanade
         direction = self.optical_flow_lucas_kanade(frame, smoothed_boundingbox)

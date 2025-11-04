@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-from landmarks import get_landmarks, add_forehead_arc
-
 
 class FaceWarp:
     def __init__(self):
@@ -44,24 +42,12 @@ class FaceWarp:
             src_pts = landmarks.astype(np.float32)
             dst_pts = src_pts.copy()
 
-            # If a neural net is used
-            if NeuralNet:
-                inner_idxs = list(range(17, 68))  # full inner face
-                # eyebrows = list(range(17, 27))    # eyebrows
-                # inner_idxs += eyebrows            # include brows explicitly
-                center = np.mean(src_pts[inner_idxs], axis=0)
-
-                # Move inner points toward center
-                for i in inner_idxs:
-                    direction = center - src_pts[i]
-                    dst_pts[i] = src_pts[i] + direction * (1 - strength)
-            else:
-                outer_idxs = [0, 1, 2, 3, 4, 5 , 6, 7]     # face corners
-                inner_idxs = list(range(8, len(src_pts)))  # eyes, mouth, nose
-                center = np.mean(src_pts[inner_idxs], axis=0)
-                for i in inner_idxs:
-                    direction = center - src_pts[i]
-                    dst_pts[i] = src_pts[i] + direction * (1 - strength)
+            outer_idxs = [0, 1, 2, 3, 4, 5 , 6, 7]     # face corners
+            inner_idxs = list(range(8, len(src_pts)))  # eyes, mouth, nose
+            center = np.mean(src_pts[inner_idxs], axis=0)
+            for i in inner_idxs:
+                direction = center - src_pts[i]
+                dst_pts[i] = src_pts[i] + direction * (1 - strength)
 
             #Compute Delaunay triangulation for warp
             if self.triangles_cache is None:

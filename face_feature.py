@@ -88,7 +88,8 @@ class FaceFeature:
         face = self.detect_face(gray)
         if face is not None:
             x,y,w,h = face
-            cv2.rectangle(frame, (x,y), (x+w, y+h), (255,0,0), 2)
+            if debug:
+                cv2.rectangle(frame, (x,y), (x+w, y+h), (255,0,0), 2)
             eyes = self.detect_eyes(gray, face)
             if debug:
                 for (ex,ey,ew,eh) in eyes:

@@ -32,8 +32,8 @@ def handle_gesture(gesture, state, strength, closed_hand_counter):
 
 def main():
     #Load overlay images and initialize them
-    glasses = cv2.imread("glasses.png", cv2.IMREAD_UNCHANGED)
-    hat = cv2.imread("hat.png", cv2.IMREAD_UNCHANGED)
+    glasses = cv2.imread("images/glasses.png", cv2.IMREAD_UNCHANGED)
+    hat = cv2.imread("images/hat.png", cv2.IMREAD_UNCHANGED)
     glasses_overlay = face_augmentation(glasses, 2.2, 0, 160)
     hat_overlay = face_augmentation(hat, 1, 0, 4500)
 
@@ -51,6 +51,11 @@ def main():
     state = 1
     closed_hand_counter = 0
 
+    #Debug settings
+    debug_gesture = False
+    debug_face_feature = False
+    debug_face_warp = False
+
     #Initialize webcam
     cap = cv2.VideoCapture(0)
 
@@ -61,18 +66,18 @@ def main():
         frame = cv2.flip(frame, 1)  # Flip horizontally
 
         #Detect hand and gesture
-        frame, gesture = hand_detector.process_frame(frame, tracker, gesture_detector)
+        frame, gesture = hand_detector.process_frame(frame, tracker, gesture_detector, debug=debug_gesture)
         print("Current gesture state:", gesture)
 
         #Update state, strength, and closed hand counter based on gesture
         state, strength, closed_hand_counter = handle_gesture(gesture, state, strength, closed_hand_counter)
 
         #Detect facial landmarks
-        frame, landmarks = face_feature_detector.process_frame(frame)
+        frame, landmarks = face_feature_detector.process_frame(frame, debug=debug_face_feature)
 
         #Warp facial features based on strength
         if landmarks is not None:
-            frame, landmarks = face_warping.squish_features(frame, landmarks, strength=strength, debug=False)
+            frame, landmarks = face_warping.squish_features(frame, landmarks, strength=strength, debug=debug_face_warp)
 
         #Overlay augmentations based on current state
         if state == 2:
@@ -84,7 +89,7 @@ def main():
             frame = hat_overlay.face_overlay(frame, landmarks[0], landmarks[2])
 
         # Display the resulting frame
-        cv2.imshow("Real-time Facial Landmarks (DNN + LBF)", frame)
+        cv2.imshow("IPCV Final assignment", frame)
         if cv2.waitKey(1) & 0xFF == 27:  # ESC
             break
     
