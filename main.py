@@ -32,8 +32,8 @@ def handle_gesture(gesture, state, strength, closed_hand_counter):
 
 def main():
     #Load overlay images and initialize them
-    glasses = cv2.imread("glasses.png", cv2.IMREAD_UNCHANGED)
-    hat = cv2.imread("hat.png", cv2.IMREAD_UNCHANGED)
+    glasses = cv2.imread("images/glasses.png", cv2.IMREAD_UNCHANGED)
+    hat = cv2.imread("images/hat.png", cv2.IMREAD_UNCHANGED)
     glasses_overlay = face_augmentation(glasses, 2.2, 0, 160)
     hat_overlay = face_augmentation(hat, 1, 0, 4500)
 
