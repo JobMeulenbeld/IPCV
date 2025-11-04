@@ -18,26 +18,28 @@ class face_augmentation:
         Overlay RGBA `overlay` image onto BGR `frame` at position (x, y).
         Handles alpha blending and clipping at image borders.
         """
-        h, w = frame.shape[:2]
-        h_o, w_o = overlay.shape[:2]
+        try:
+            h, w = frame.shape[:2]
+            h_o, w_o = overlay.shape[:2]
 
-        # Clip overlay to stay within the frame
-        if x >= w or y >= h:
-            return frame
-        
-        # If overlay is larger than frame return the frame
-        w = min(w_o, w - x)
-        h = min(h_o, h - y)
-        if w <= 0 or h <= 0:
-            return frame
+            # Clip overlay to stay within the frame
+            if x >= w or y >= h:
+                return frame
+            
+            # If overlay is larger than frame return the frame
+            w = min(w_o, w - x)
+            h = min(h_o, h - y)
+            if w <= 0 or h <= 0:
+                return frame
 
-        overlay = overlay[0:h, 0:w]
-        overlay_img = overlay[:, :, :3]
-        mask = overlay[:, :, 3:] / 255.0  # alpha channel normalized to [0,1]
+            overlay = overlay[0:h, 0:w]
+            overlay_img = overlay[:, :, :3]
+            mask = overlay[:, :, 3:] / 255.0  # alpha channel normalized to [0,1]
 
-        # Perform alpha blending
-        frame[y:y+h, x:x+w] = (1.0 - mask) * frame[y:y+h, x:x+w] + mask * overlay_img
-
+            # Perform alpha blending
+            frame[y:y+h, x:x+w] = (1.0 - mask) * frame[y:y+h, x:x+w] + mask * overlay_img
+        except Exception as e:
+            print("Error in overlay_transparent:", e)
         return frame
     
     def smoothing(self, top_left, size):
